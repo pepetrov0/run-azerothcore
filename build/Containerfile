@@ -1,0 +1,12 @@
+FROM ubuntu:24.04
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential ccache libtool cmake ninja-build clang \
+        git curl unzip openssl ca-certificates \
+        default-libmysqlclient-dev libboost-all-dev libssl-dev libmysql++-dev \
+        libreadline-dev zlib1g-dev libbz2-dev libncurses5-dev liblzma-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY build.sh /build.sh
+ENV HOME=/tmp
+ENTRYPOINT ["/bin/bash", "/build.sh"]

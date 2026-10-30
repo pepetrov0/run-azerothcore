@@ -1,0 +1,22 @@
+#!/bin/sh
+# AzerothCore control script. Three containers, one shared volume (default ../azeroth-data, override with AZEROTH_VOL).
+#   fetch  -> /vol/src, /vol/client      build -> /vol/build, /vol/dist      start -> /vol/{mysql,etc,logs}
+set -eu
+HERE=$(cd "$(dirname "$0")" && pwd)
+VOL=${AZEROTH_VOL:-$HERE/../azeroth-data}
+mkdir -p "$VOL"; VOL=$(cd "$VOL" && pwd)
+RUN="podman run --rm --userns=keep-id -v $VOL:/vol"
+
+case "${1:-}" in
+  images) for s in fetch build server; do podman build -t azeroth-$s "$HERE/$s"; done ;;
+  fetch)  $RUN -e AC_REPO -e AC_BRANCH -e AC_CLIENT_URL azeroth-fetch ;;
+  build)  $RUN --cpus 4 -e JOBS -e CTYPE azeroth-build ;;
+  start)  mkdir -p "$VOL/logs"
+          podman run -dit --name azeroth --restart unless-stopped --userns=keep-id -v "$VOL:/vol" \
+              -p 3724:3724 -p 8085:8085 azeroth-server ;;
+  stop)   podman stop -t 90 azeroth && podman rm azeroth ;;   # long timeout: worldserver saves on exit
+  logs)   podman logs -f azeroth ;;
+  console) echo "worldserver console; detach with Ctrl-P Ctrl-Q"; podman attach azeroth ;;
+  update) "$0" fetch && "$0" build && { "$0" stop || true; } && "$0" start ;;
+  *) echo "usage: $0 images|fetch|build|start|stop|logs|console|update" >&2; exit 1 ;;
+esac

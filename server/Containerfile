@@ -1,0 +1,16 @@
+FROM ubuntu:24.04
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        mysql-server mysql-client libmysqlclient21 libreadline8t64 libicu74 \
+        libncurses6 ca-certificates tini \
+    && rm -rf /var/lib/apt/lists/* /var/lib/mysql
+COPY entrypoint.sh /entrypoint.sh
+ENV HOME=/tmp \
+    PATH="/vol/dist/bin:$PATH" \
+    AC_DATA_DIR=/vol/client \
+    AC_LOGS_DIR=/vol/logs \
+    AC_DISABLE_INTERACTIVE=1 \
+    AC_CLOSE_IDLE_CONNECTIONS=0
+EXPOSE 3724 8085
+ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/entrypoint.sh"]
