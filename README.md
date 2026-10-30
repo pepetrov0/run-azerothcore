@@ -69,11 +69,18 @@ Run `./azeroth help` for the full reference.
 
 ## Configuration
 
-Set these environment variables when calling `./azeroth`:
+Settings are environment variables. Set them on the command line, or put them in a `.env` file next to the `azeroth` script so they apply to every run:
+
+```bash
+cp .env.example .env
+$EDITOR .env
+```
+
+The file is read on every run. Variables already set in the environment take precedence over it, so `JOBS=8 ./azeroth build` overrides `JOBS` from `.env`. `.env` is ignored by git; `.env.example` documents the supported variables.
 
 | Variable | Used by | Default |
 |----------|---------|---------|
-| `AZEROTH_VOL` | all | `./data` (inside this folder) |
+| `AZEROTH_VOL` | all | `data/` next to the script |
 | `AC_REPO` | `fetch` | AzerothCore on GitHub |
 | `AC_BRANCH` | `fetch` | `master` |
 | `AC_CLIENT_URL` | `fetch` | latest [wowgaming/client-data](https://github.com/wowgaming/client-data) release |

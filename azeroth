@@ -3,6 +3,31 @@
 #   fetch  -> /vol/src, /vol/client      build -> /vol/build, /vol/dist      start -> /vol/{mysql,etc,logs}
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
+
+# ---- .env -------------------------------------------------------------------
+# Load KEY=VALUE pairs from .env next to this script into the environment, so the variables
+# below can be set there instead of on every command line. Variables already present in the
+# calling environment take precedence over the file.
+ENVFILE=$HERE/.env
+if [ -f "$ENVFILE" ]; then
+    tmp=$(mktemp) || { echo "$0: cannot create a temporary file" >&2; exit 1; }
+    trap 'rm -f "$tmp"' EXIT INT TERM
+    # Filter out keys that are already set, so sourcing the copy cannot override them.
+    sed 's/\r$//' "$ENVFILE" | while IFS= read -r line || [ -n "$line" ]; do
+        key=$(printf '%s\n' "$line" | sed -n 's/^[[:space:]]*//; s/^export[[:space:]]\{1,\}//; s/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p')
+        if [ -n "$key" ]; then
+            eval "in_env=\${$key+x}"
+            if [ "$in_env" = x ]; then continue; fi
+        fi
+        printf '%s\n' "$line"
+    done > "$tmp"
+    set -a
+    . "$tmp"
+    set +a
+    rm -f "$tmp"
+    trap - EXIT INT TERM
+fi
+
 VOL=${AZEROTH_VOL:-$HERE/data}
 mkdir -p "$VOL"; VOL=$(cd "$VOL" && pwd)
 RUN="podman run --rm --userns=keep-id -v $VOL:/vol"
@@ -44,6 +69,9 @@ TYPICAL FIRST RUN
   all-in-one:    $0 images && $0 aio
 
 ENVIRONMENT
+  Any variable below may be put in a .env file next to this script (copy .env.example),
+  instead of setting it on the command line. A variable already set in the environment
+  takes precedence over the file.
   AZEROTH_VOL    Shared volume directory, mounted at /vol in every container.
                  Default: ./data (inside this folder). Current: $VOL
   AC_REPO        fetch: git URL of the source.      Default: azerothcore/azerothcore-wotlk on GitHub
