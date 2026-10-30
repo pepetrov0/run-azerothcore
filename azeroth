@@ -7,7 +7,68 @@ VOL=${AZEROTH_VOL:-$HERE/../azeroth-data}
 mkdir -p "$VOL"; VOL=$(cd "$VOL" && pwd)
 RUN="podman run --rm --userns=keep-id -v $VOL:/vol"
 
+usage() { cat <<HELP
+azeroth - run an AzerothCore (WotLK 3.3.5) server in three rootless podman containers.
+
+USAGE
+  $0 <command>
+
+COMMANDS
+  images    Build the three container images (azeroth-fetch, azeroth-build, azeroth-server).
+            Run once, and again after editing any Containerfile or script in fetch/, build/, server/.
+  fetch     Clone (first run) or fast-forward the AzerothCore source into \$VOL/src, and download
+            the client data into \$VOL/client (skipped if already present). Never discards local
+            changes: a diverged checkout makes the fast-forward fail.
+  build     Compile \$VOL/src into \$VOL/dist. The build tree (\$VOL/build) and ccache (\$VOL/ccache)
+            persist, so rebuilds are incremental. First build is long. Capped at 4 CPUs / 4 jobs.
+  start     Start the server container in the background (mysqld, dbimport, authserver, worldserver).
+            First start initialises MySQL, creates the acore user and databases, and copies default
+            configs into \$VOL/etc. Restarts automatically unless stopped with '$0 stop'.
+  stop      Gracefully stop and remove the server container (waits up to 90s so worldserver can save).
+  logs      Follow the container output (Ctrl-C to quit; the server keeps running).
+  console   Attach to the worldserver console, e.g. to create accounts:
+              account create <name> <password>
+              account set gmlevel <name> 3 -1
+            Detach with Ctrl-P Ctrl-Q (Ctrl-C would stop the server).
+  update    fetch + build, then restart the server (it is stopped only after the build succeeds).
+  help      Show this text.
+
+TYPICAL FIRST RUN
+  $0 images && $0 fetch && $0 build && $0 start
+
+ENVIRONMENT
+  AZEROTH_VOL    Shared volume directory, mounted at /vol in every container.
+                 Default: ../azeroth-data (next to this folder). Current: $VOL
+  AC_REPO        fetch: git URL of the source.      Default: azerothcore/azerothcore-wotlk on GitHub
+  AC_BRANCH      fetch: branch to track.            Default: master
+  AC_CLIENT_URL  fetch: client data zip URL.        Default: wowgaming/client-data latest release
+  JOBS           build: compiler parallelism.       Default: 4
+  CTYPE          build: CMake build type.           Default: RelWithDebInfo
+
+VOLUME LAYOUT (\$VOL)
+  src/      AzerothCore source (git checkout)         written by fetch
+  client/   dbc, maps, vmaps, mmaps, Cameras          written by fetch
+  build/    CMake/Ninja build tree                    written by build
+  ccache/   compiler cache (2G max)                   written by build
+  dist/     installed binaries and default configs    written by build
+  mysql/    MySQL datadir (all game data)             written by start
+  etc/      authserver/worldserver/dbimport .conf     written by start; edit these, then restart
+  logs/     server, auth and mysqld logs              written by start
+
+PORTS (published on the host)
+  3724  authserver (login)        8085  worldserver
+
+NOTES
+  - Modules: put them in \$VOL/src/modules/ and run '$0 build'.
+  - Back up \$VOL/mysql and \$VOL/etc (stop the server first for a consistent copy).
+  - The database password is generated into \$VOL/etc/acore-db.pw (mode 600).
+  - The realm address defaults to 127.0.0.1; change it in the auth database
+    (acore_auth.realmlist) for remote clients.
+HELP
+}
+
 case "${1:-}" in
+  help|-h|--help) usage ;;
   images) for s in fetch build server; do podman build -t azeroth-$s "$HERE/$s"; done ;;
   fetch)  $RUN -e AC_REPO -e AC_BRANCH -e AC_CLIENT_URL azeroth-fetch ;;
   build)  $RUN --cpus 4 -e JOBS -e CTYPE azeroth-build ;;
@@ -18,5 +79,5 @@ case "${1:-}" in
   logs)   podman logs -f azeroth ;;
   console) echo "worldserver console; detach with Ctrl-P Ctrl-Q"; podman attach azeroth ;;
   update) "$0" fetch && "$0" build && { "$0" stop || true; } && "$0" start ;;
-  *) echo "usage: $0 images|fetch|build|start|stop|logs|console|update" >&2; exit 1 ;;
+  *) usage >&2; exit 1 ;;
 esac
