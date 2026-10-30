@@ -34,7 +34,7 @@ Or run the whole pipeline in a single container with the all-in-one image:
 ./azeroth images && ./azeroth aio
 ```
 
-`aio` fetches and builds on first run, then starts the server in the foreground; on later runs it skips straight to the server because the binaries are already in the volume. Ctrl-C stops it gracefully, and `FORCE_BUILD=1 ./azeroth aio` redoes the fetch and build. With `AC_PULL=1 ./azeroth aio` it instead fetches on every start and rebuilds only when the source commit differs from what is installed (an offline start is tolerated and falls back to the existing binaries). The `azeroth-aio` image is much larger than the three specialized images because it keeps the compiler and MySQL tooling at runtime.
+`aio` fetches and builds on first run, then starts the server detached under the name `azeroth` — the same container name `start` uses, so `logs`, `console` and `stop` work with it, and it restarts unless stopped. On later runs it skips straight to the server because the binaries are already in the volume. `FORCE_BUILD=1 ./azeroth aio` redoes the fetch and build; with `AC_PULL=1 ./azeroth aio` it instead fetches on every start and rebuilds only when the source commit differs from what is installed (an offline start is tolerated and falls back to the existing binaries). Follow the first run with `./azeroth logs`. The `azeroth-aio` image is much larger than the three specialized images because it keeps the compiler and MySQL tooling at runtime. Because `aio` and `start` share the container name, only one of them can run at a time.
 
 Create an account from the worldserver console:
 
@@ -65,7 +65,7 @@ Run `./azeroth help` for the full reference.
 | `logs` | Follow the container output. |
 | `console` | Attach to the worldserver console. |
 | `update` | `fetch` + `build`, then restart. The server stops only after the build succeeds. |
-| `aio` | Run fetch, build and the server in one container (foreground; Ctrl-C stops). |
+| `aio` | Run fetch, build and the server in one detached container (same name and lifecycle commands as `start`). |
 
 ## Configuration
 

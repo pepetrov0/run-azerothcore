@@ -34,9 +34,9 @@ COMMANDS
             Detach with Ctrl-P Ctrl-Q (Ctrl-C would stop the server).
   update    fetch + build, then restart the server (it is stopped only after the build succeeds).
   aio       Run everything in one container: fetch, build (skipped once binaries exist), then start
-            the server in the foreground. Ctrl-C stops it gracefully. FORCE_BUILD=1 repeats
-            fetch+build; AC_PULL=1 fetches on every start and rebuilds only if the source changed.
-            Unlike 'start', it has no container name, so use logs/console only with 'start'.
+            the server detached under the name 'azeroth', so logs/console/stop work for it. It
+            restarts unless stopped, like 'start'. FORCE_BUILD=1 repeats fetch+build; AC_PULL=1
+            fetches on every start and rebuilds only if the source changed.
   help      Show this text.
 
 TYPICAL FIRST RUN
@@ -89,7 +89,8 @@ case "${1:-}" in
   logs)   podman logs -f azeroth ;;
   console) echo "worldserver console; detach with Ctrl-P Ctrl-Q"; podman attach azeroth ;;
   update) "$0" fetch && "$0" build && { "$0" stop || true; } && "$0" start ;;
-  aio)    podman run --rm -it --userns=keep-id -v "$VOL:/vol" -p 3724:3724 -p 8085:8085 \
+  aio)    podman run -dit --name azeroth --restart unless-stopped --userns=keep-id -v "$VOL:/vol" \
+              -p 3724:3724 -p 8085:8085 \
               -e AC_REPO -e AC_BRANCH -e AC_CLIENT_URL -e JOBS -e CTYPE -e FORCE_BUILD -e AC_PULL azeroth-aio ;;
   *) usage >&2; exit 1 ;;
 esac
