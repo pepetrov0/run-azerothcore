@@ -22,4 +22,9 @@ cmake /vol/src -G Ninja \
     -DBoost_USE_STATIC_LIBS=ON
 cmake --build . --config "$CTYPE" -j "$JOBS"
 cmake --install . --config "$CTYPE"
+# Record what these binaries were built from, so aio can tell whether a fetch needs a rebuild.
+if commit=$(git -C /vol/src rev-parse HEAD 2>/dev/null); then
+    mkdir -p /vol/dist
+    printf '%s\n' "$commit" > /vol/dist/.built-from
+fi
 echo "[build] done"

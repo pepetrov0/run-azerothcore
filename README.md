@@ -34,7 +34,7 @@ Or run the whole pipeline in a single container with the all-in-one image:
 ./azeroth images && ./azeroth aio
 ```
 
-`aio` fetches and builds on first run, then starts the server in the foreground; on later runs it skips straight to the server because the binaries are already in the volume. Ctrl-C stops it gracefully, and `FORCE_BUILD=1 ./azeroth aio` redoes the fetch and build. The `azeroth-aio` image is much larger than the three specialized images because it keeps the compiler and MySQL tooling at runtime.
+`aio` fetches and builds on first run, then starts the server in the foreground; on later runs it skips straight to the server because the binaries are already in the volume. Ctrl-C stops it gracefully, and `FORCE_BUILD=1 ./azeroth aio` redoes the fetch and build. With `AC_PULL=1 ./azeroth aio` it instead fetches on every start and rebuilds only when the source commit differs from what is installed (an offline start is tolerated and falls back to the existing binaries). The `azeroth-aio` image is much larger than the three specialized images because it keeps the compiler and MySQL tooling at runtime.
 
 Create an account from the worldserver console:
 
@@ -80,6 +80,7 @@ Set these environment variables when calling `./azeroth`:
 | `JOBS` | `build` | `4` |
 | `CTYPE` | `build` | `RelWithDebInfo` |
 | `FORCE_BUILD` | `aio` | unset (set to `1` to redo fetch + build) |
+| `AC_PULL` | `aio` | unset (set to `1` to fetch on start and rebuild only if the source changed) |
 
 Server settings are in `$AZEROTH_VOL/etc/*.conf`. Defaults are copied there on first start and never overwritten; edit them and run `./azeroth stop && ./azeroth start`.
 
@@ -90,7 +91,7 @@ Server settings are in `$AZEROTH_VOL/etc/*.conf`. Defaults are copied there on f
 | `src/` | fetch | AzerothCore git checkout |
 | `client/` | fetch | `dbc`, `maps`, `vmaps`, `mmaps`, `Cameras`, plus the `.source` version stamp |
 | `build/`, `ccache/` | build | CMake/Ninja tree and compiler cache (2 GB max) |
-| `dist/` | build | Installed binaries and default configs |
+| `dist/` | build | Installed binaries, default configs, and the `.built-from` commit stamp |
 | `mysql/` | start | MySQL data directory (all game data) |
 | `etc/` | start | `authserver.conf`, `worldserver.conf`, `dbimport.conf`, `acore-db.pw` |
 | `logs/` | start | Server, auth and MySQL logs |
