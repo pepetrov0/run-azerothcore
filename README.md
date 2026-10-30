@@ -1,6 +1,6 @@
 # run-azerothcore
 
-Run an [AzerothCore](https://github.com/azerothcore/azerothcore-wotlk) (WotLK 3.3.5) server in three rootless Podman containers that share a single volume.
+Run an [AzerothCore](https://github.com/azerothcore/azerothcore-wotlk) (WotLK 3.3.5) server in rootless Podman containers that share a single volume — either as three specialized containers or as one all-in-one image.
 
 This repository contains only Containerfiles and scripts. Source, build output, client data and the database all live in the shared volume at [`data/`](data), which is ignored by git.
 
@@ -13,19 +13,28 @@ This repository contains only Containerfiles and scripts. Source, build output, 
 | `azeroth-fetch` | [`fetch/`](fetch) | Clones or fast-forwards the AzerothCore source and downloads the client data. |
 | `azeroth-build` | [`build/`](build) | Compiles the source with clang/Ninja/ccache and installs it into the volume. |
 | `azeroth-server` | [`server/`](server) | Runs MySQL, imports the database schema, then starts `authserver` and `worldserver`. |
+| `azeroth-aio` | [`aio/`](aio) | All three stages in one container: fetch, build, then run the server. |
 
-All three mount the same directory at `/vol` and run as your host user, so nothing in the volume is owned by root. Because the source path is identical everywhere (`/vol/src`), the paths compiled into the binaries stay valid at runtime.
+All images mount the same directory at `/vol` and run as your host user, so nothing in the volume is owned by root. Because the source path is identical everywhere (`/vol/src`), the paths compiled into the binaries stay valid at runtime.
 
 ## Quick start
 
 **Requirements:** Podman (rootless) and roughly 15 GB of free disk space for source, client data and build output. The first build is long.
 
 ```bash
-./azeroth images   # build the three images
+./azeroth images   # build the container images
 ./azeroth fetch    # source + client data
 ./azeroth build    # compile and install
 ./azeroth start    # start MySQL, import the DB, run auth + world servers
 ```
+
+Or run the whole pipeline in a single container with the all-in-one image:
+
+```bash
+./azeroth images && ./azeroth aio
+```
+
+`aio` fetches and builds on first run, then starts the server in the foreground; on later runs it skips straight to the server because the binaries are already in the volume. Ctrl-C stops it gracefully, and `FORCE_BUILD=1 ./azeroth aio` redoes the fetch and build. The `azeroth-aio` image is much larger than the three specialized images because it keeps the compiler and MySQL tooling at runtime.
 
 Create an account from the worldserver console:
 
@@ -48,7 +57,7 @@ Run `./azeroth help` for the full reference.
 
 | Command | Description |
 |---------|-------------|
-| `images` | Build the three container images. |
+| `images` | Build the container images, including `azeroth-aio`. |
 | `fetch` | Clone or update the source; download client data if missing. |
 | `build` | Incremental compile and install (4 CPUs / 4 jobs). |
 | `start` | Start the server in the background; restarts unless stopped. |
@@ -56,6 +65,7 @@ Run `./azeroth help` for the full reference.
 | `logs` | Follow the container output. |
 | `console` | Attach to the worldserver console. |
 | `update` | `fetch` + `build`, then restart. The server stops only after the build succeeds. |
+| `aio` | Run fetch, build and the server in one container (foreground; Ctrl-C stops). |
 
 ## Configuration
 
@@ -69,6 +79,7 @@ Set these environment variables when calling `./azeroth`:
 | `AC_CLIENT_URL` | `fetch` | latest [wowgaming/client-data](https://github.com/wowgaming/client-data) release |
 | `JOBS` | `build` | `4` |
 | `CTYPE` | `build` | `RelWithDebInfo` |
+| `FORCE_BUILD` | `aio` | unset (set to `1` to redo fetch + build) |
 
 Server settings are in `$AZEROTH_VOL/etc/*.conf`. Defaults are copied there on first start and never overwritten; edit them and run `./azeroth stop && ./azeroth start`.
 

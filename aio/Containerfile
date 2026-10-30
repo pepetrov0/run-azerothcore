@@ -1,0 +1,27 @@
+# All-in-one image: fetch, build and run the server in a single container.
+# Build with the repository root as context (see 'azeroth images'):
+#   podman build -t azeroth-aio -f aio/Containerfile .
+# The build toolchain stays in the image because fetch/build run at container start.
+FROM ubuntu:24.04
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential ccache libtool cmake ninja-build clang \
+        git curl unzip openssl ca-certificates \
+        default-libmysqlclient-dev libboost-all-dev libssl-dev libmysql++-dev \
+        libreadline-dev zlib1g-dev libbz2-dev libncurses5-dev liblzma-dev \
+        mysql-server mysql-client libmysqlclient21 libreadline8t64 libicu74 \
+        libncurses6 tini \
+    && rm -rf /var/lib/apt/lists/* /var/lib/mysql
+COPY fetch/fetch.sh /fetch.sh
+COPY build/build.sh /build.sh
+COPY server/entrypoint.sh /entrypoint.sh
+COPY aio/run.sh /aio.sh
+ENV HOME=/tmp \
+    PATH="/vol/dist/bin:$PATH" \
+    AC_DATA_DIR=/vol/client \
+    AC_LOGS_DIR=/vol/logs \
+    AC_DISABLE_INTERACTIVE=1 \
+    AC_CLOSE_IDLE_CONNECTIONS=0
+EXPOSE 3724 8085
+ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/aio.sh"]

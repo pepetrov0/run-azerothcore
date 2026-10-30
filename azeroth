@@ -1,5 +1,5 @@
 #!/bin/sh
-# AzerothCore control script. Three containers, one shared volume (default ./data, override with AZEROTH_VOL).
+# AzerothCore control script. Three containers (or one all-in-one image) sharing a volume (default ./data, override with AZEROTH_VOL).
 #   fetch  -> /vol/src, /vol/client      build -> /vol/build, /vol/dist      start -> /vol/{mysql,etc,logs}
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -8,14 +8,15 @@ mkdir -p "$VOL"; VOL=$(cd "$VOL" && pwd)
 RUN="podman run --rm --userns=keep-id -v $VOL:/vol"
 
 usage() { cat <<HELP
-azeroth - run an AzerothCore (WotLK 3.3.5) server in three rootless podman containers.
+azeroth - run an AzerothCore (WotLK 3.3.5) server in rootless podman containers.
 
 USAGE
   $0 <command>
 
 COMMANDS
-  images    Build the three container images (azeroth-fetch, azeroth-build, azeroth-server).
-            Run once, and again after editing any Containerfile or script in fetch/, build/, server/.
+  images    Build the container images (azeroth-fetch, azeroth-build, azeroth-server and
+            azeroth-aio). Run once, and again after editing any Containerfile or script in
+            fetch/, build/, server/ or aio/.
   fetch     Clone (first run) or fast-forward the AzerothCore source into \$VOL/src, and download
             the client data into \$VOL/client (skipped if already present). Never discards local
             changes: a diverged checkout makes the fast-forward fail.
@@ -31,10 +32,15 @@ COMMANDS
               account set gmlevel <name> 3 -1
             Detach with Ctrl-P Ctrl-Q (Ctrl-C would stop the server).
   update    fetch + build, then restart the server (it is stopped only after the build succeeds).
+  aio       Run everything in one container: fetch, build (skipped once binaries exist), then start
+            the server in the foreground. Ctrl-C stops it gracefully. Set FORCE_BUILD=1 to repeat
+            fetch+build. Unlike 'start', it has no container name, so use logs/console only with
+            'start'.
   help      Show this text.
 
 TYPICAL FIRST RUN
-  $0 images && $0 fetch && $0 build && $0 start
+  three images:  $0 images && $0 fetch && $0 build && $0 start
+  all-in-one:    $0 images && $0 aio
 
 ENVIRONMENT
   AZEROTH_VOL    Shared volume directory, mounted at /vol in every container.
@@ -44,6 +50,7 @@ ENVIRONMENT
   AC_CLIENT_URL  fetch: client data zip URL.        Default: wowgaming/client-data latest release
   JOBS           build: compiler parallelism.       Default: 4
   CTYPE          build: CMake build type.           Default: RelWithDebInfo
+  FORCE_BUILD    aio: re-run fetch+build even if binaries exist. Default: unset
 
 VOLUME LAYOUT (\$VOL)
   src/      AzerothCore source (git checkout)         written by fetch
@@ -69,7 +76,8 @@ HELP
 
 case "${1:-}" in
   help|-h|--help) usage ;;
-  images) for s in fetch build server; do podman build -t azeroth-$s "$HERE/$s"; done ;;
+  images) for s in fetch build server; do podman build -t azeroth-$s "$HERE/$s"; done
+          podman build -t azeroth-aio -f "$HERE/aio/Containerfile" "$HERE" ;;
   fetch)  $RUN -e AC_REPO -e AC_BRANCH -e AC_CLIENT_URL azeroth-fetch ;;
   build)  $RUN --cpus 4 -e JOBS -e CTYPE azeroth-build ;;
   start)  mkdir -p "$VOL/logs"
@@ -79,5 +87,7 @@ case "${1:-}" in
   logs)   podman logs -f azeroth ;;
   console) echo "worldserver console; detach with Ctrl-P Ctrl-Q"; podman attach azeroth ;;
   update) "$0" fetch && "$0" build && { "$0" stop || true; } && "$0" start ;;
+  aio)    podman run --rm -it --userns=keep-id -v "$VOL:/vol" -p 3724:3724 -p 8085:8085 \
+              -e AC_REPO -e AC_BRANCH -e AC_CLIENT_URL -e JOBS -e CTYPE -e FORCE_BUILD azeroth-aio ;;
   *) usage >&2; exit 1 ;;
 esac
