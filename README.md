@@ -1,4 +1,4 @@
-# azeroth
+# run-azerothcore
 
 Run an [AzerothCore](https://github.com/azerothcore/azerothcore-wotlk) (WotLK 3.3.5) server in three rootless Podman containers that share a single volume.
 
