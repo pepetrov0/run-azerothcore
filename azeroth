@@ -1,9 +1,9 @@
 #!/bin/sh
-# AzerothCore control script. Three containers, one shared volume (default ../azeroth-data, override with AZEROTH_VOL).
+# AzerothCore control script. Three containers, one shared volume (default ./data, override with AZEROTH_VOL).
 #   fetch  -> /vol/src, /vol/client      build -> /vol/build, /vol/dist      start -> /vol/{mysql,etc,logs}
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
-VOL=${AZEROTH_VOL:-$HERE/../azeroth-data}
+VOL=${AZEROTH_VOL:-$HERE/data}
 mkdir -p "$VOL"; VOL=$(cd "$VOL" && pwd)
 RUN="podman run --rm --userns=keep-id -v $VOL:/vol"
 
@@ -38,7 +38,7 @@ TYPICAL FIRST RUN
 
 ENVIRONMENT
   AZEROTH_VOL    Shared volume directory, mounted at /vol in every container.
-                 Default: ../azeroth-data (next to this folder). Current: $VOL
+                 Default: ./data (inside this folder). Current: $VOL
   AC_REPO        fetch: git URL of the source.      Default: azerothcore/azerothcore-wotlk on GitHub
   AC_BRANCH      fetch: branch to track.            Default: master
   AC_CLIENT_URL  fetch: client data zip URL.        Default: wowgaming/client-data latest release

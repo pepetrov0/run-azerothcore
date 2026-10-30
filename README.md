@@ -2,7 +2,7 @@
 
 Run an [AzerothCore](https://github.com/azerothcore/azerothcore-wotlk) (WotLK 3.3.5) server in three rootless Podman containers that share a single volume.
 
-This repository contains only Containerfiles and scripts. Source, build output, client data and the database all live in the shared volume, outside this folder.
+This repository contains only Containerfiles and scripts. Source, build output, client data and the database all live in the shared volume at [`data/`](data), which is ignored by git.
 
 [Overview](#overview) · [Quick start](#quick-start) · [Commands](#commands) · [Configuration](#configuration) · [Volume layout](#volume-layout) · [Operations](#operations)
 
@@ -63,7 +63,7 @@ Set these environment variables when calling `./azeroth`:
 
 | Variable | Used by | Default |
 |----------|---------|---------|
-| `AZEROTH_VOL` | all | `../azeroth-data` (next to this folder) |
+| `AZEROTH_VOL` | all | `./data` (inside this folder) |
 | `AC_REPO` | `fetch` | AzerothCore on GitHub |
 | `AC_BRANCH` | `fetch` | `master` |
 | `AC_CLIENT_URL` | `fetch` | latest [wowgaming/client-data](https://github.com/wowgaming/client-data) release |
