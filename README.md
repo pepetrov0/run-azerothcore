@@ -58,7 +58,7 @@ Run `./azeroth help` for the full reference.
 | Command | Description |
 |---------|-------------|
 | `images` | Build the container images, including `azeroth-aio`. |
-| `fetch` | Clone or update the source; download client data if missing. |
+| `fetch` | Clone or update the source; download client data when missing or when the upstream release changes. |
 | `build` | Incremental compile and install (4 CPUs / 4 jobs). |
 | `start` | Start the server in the background; restarts unless stopped. |
 | `stop` | Gracefully stop the server (waits up to 90 s for saves). |
@@ -88,7 +88,7 @@ Server settings are in `$AZEROTH_VOL/etc/*.conf`. Defaults are copied there on f
 | Path | Written by | Contents |
 |------|-----------|----------|
 | `src/` | fetch | AzerothCore git checkout |
-| `client/` | fetch | `dbc`, `maps`, `vmaps`, `mmaps`, `Cameras` |
+| `client/` | fetch | `dbc`, `maps`, `vmaps`, `mmaps`, `Cameras`, plus the `.source` version stamp |
 | `build/`, `ccache/` | build | CMake/Ninja tree and compiler cache (2 GB max) |
 | `dist/` | build | Installed binaries and default configs |
 | `mysql/` | start | MySQL data directory (all game data) |
@@ -98,6 +98,8 @@ Server settings are in `$AZEROTH_VOL/etc/*.conf`. Defaults are copied there on f
 ## Operations
 
 **Modules:** place them in `$AZEROTH_VOL/src/modules/` and run `./azeroth build`.
+
+**Client data updates:** `fetch` sends a HEAD request to the release URL and compares its size/ETag with `client/.source`; when upstream publishes a new release it re-downloads automatically. Delete `client/.source` to force a fresh download.
 
 **Backups:** stop the server, then copy `mysql/` and `etc/`.
 

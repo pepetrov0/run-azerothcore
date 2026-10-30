@@ -18,8 +18,9 @@ COMMANDS
             azeroth-aio). Run once, and again after editing any Containerfile or script in
             fetch/, build/, server/ or aio/.
   fetch     Clone (first run) or fast-forward the AzerothCore source into \$VOL/src, and download
-            the client data into \$VOL/client (skipped if already present). Never discards local
-            changes: a diverged checkout makes the fast-forward fail.
+            the client data into \$VOL/client. A HEAD request against the release detects an updated
+            client-data release, so unchanged data is skipped without downloading the zip. Never
+            discards local changes: a diverged checkout makes the fast-forward fail.
   build     Compile \$VOL/src into \$VOL/dist. The build tree (\$VOL/build) and ccache (\$VOL/ccache)
             persist, so rebuilds are incremental. First build is long. Capped at 4 CPUs / 4 jobs.
   start     Start the server container in the background (mysqld, dbimport, authserver, worldserver).
